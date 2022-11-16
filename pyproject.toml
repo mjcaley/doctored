@@ -1,0 +1,58 @@
+[tool.poetry]
+name = "doctored"
+version = "0.1.0"
+description = ""
+authors = ["Michael Caley <mjcaley@darkarctic.com>"]
+license = "MIT"
+readme = "README.md"
+packages = [{include = "doctored", from = "src"}]
+
+[tool.poetry.scripts]
+doctored = "doctored.cli:main"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+docutils = "^0.19"
+typer = "^0.6.1"
+dynaconf = "^3.1.11"
+griffe = "^0.23.0"
+astroid = "^2.12.12"
+
+[tool.poetry.group.quality.dependencies]
+isort = "^5.10.1"
+pre-commit = "^2.20.0"
+black = "^22.10.0"
+mypy = "^0.991"
+
+[tool.black]
+target-version = ["py310"]
+
+[tool.isort]
+profile = "black"
+src_paths = ["src/doctored", "tests"]
+
+[tool.poetry.group.test.dependencies]
+pytest = "^7.2.0"
+pytest-cov = "^4.0.0"
+pytest-mock = "^3.10.0"
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+testpaths = [
+    "tests"
+]
+
+[tool.coverage.run]
+source = ["src/doctored"]
+branch = true
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "def __str__"
+]
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

@@ -1,0 +1,5 @@
+ignore-private = true
+ignore-init-module = true
+exclude = []
+fail-under = 0
+ignore-magic = false
