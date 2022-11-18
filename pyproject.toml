@@ -17,6 +17,7 @@ typer = "^0.6.1"
 dynaconf = "^3.1.11"
 griffe = "^0.23.0"
 astroid = "^2.12.12"
+loguru = "^0.6.0"
 
 [tool.poetry.group.quality.dependencies]
 isort = "^5.10.1"
@@ -30,6 +31,9 @@ target-version = ["py310"]
 [tool.isort]
 profile = "black"
 src_paths = ["src/doctored", "tests"]
+
+
+
 
 [tool.poetry.group.test.dependencies]
 pytest = "^7.2.0"

@@ -1,14 +1,7 @@
 from pathlib import Path
 
-import pytest
-
-from doctored.pipeline import (
-    Handler,
-    HandlerCollection,
-    Pipeline,
-    PipelineBuilder,
-    SinkHandler,
-)
+from doctored.handlers import Handler, HandlerCollection
+from doctored.pipeline import Pipeline, PipelineBuilder
 
 
 def test_pipeline_run_files():
@@ -16,51 +9,7 @@ def test_pipeline_run_files():
     p = Pipeline(HandlerCollection(), HandlerCollection())
     result = p.run_files(root)
 
-    assert [root / "sample.py"] == result
-
-
-def test_base_handler(mocker):
-    h = Handler()
-
-    assert None is h.next_handler
-    h2 = Handler()
-    h.next_handler = h2
-    assert h2 is h.next_handler
-    with pytest.raises(NotImplementedError):
-        h.handle(mocker.Mock())
-
-
-def test_sink_handler(mocker):
-    s = SinkHandler()
-
-    assert [] == s.items
-    s.handle(42)
-    assert [42] == s.items
-
-
-def test_handler_collection(mocker):
-    class FakeHandler(Handler[int]):
-        def handle(self, item: int):
-            self.next_handler.handle(item)
-
-    h1 = FakeHandler()
-    h2 = FakeHandler()
-    h1.next_handler = h2
-    h1_spy = mocker.spy(h1, "handle")
-    h2_spy = mocker.spy(h2, "handle")
-    c = HandlerCollection(h1, h2)
-    c.handle(42)
-
-    h1_spy.assert_called_once_with(42)
-    h2_spy.assert_called_once_with(42)
-
-
-def test_empty_handler_collection():
-    c = HandlerCollection()
-    c.handle(42)
-
-    assert 1 == len(c.sink.items)
-    assert 42 == c.sink.items[0]
+    assert [root] == result
 
 
 def test_pipeline_builder_empty():
