@@ -2,9 +2,11 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Generic, TypeVar
+from typing import Any, Generic, TypeVar
 
 T = TypeVar("T")
+In = TypeVar("In")
+Out = TypeVar("Out")
 
 
 class IHandler(ABC, Generic[T]):
@@ -18,44 +20,44 @@ class IHandler(ABC, Generic[T]):
         """
 
 
-class Handler(IHandler, Generic[T]):
+class Handler(IHandler[In], Generic[In, Out]):
     def __init__(self):
         self._handler = None
 
     @property
-    def next_handler(self) -> Handler[T] | None:
+    def next_handler(self) -> Handler[Out] | None:
         return self._handler
 
     @next_handler.setter
-    def next_handler(self, handler: Handler[T]):
+    def next_handler(self, handler: IHandler[Out]):
         self._handler = handler
 
-    def handle(self, item: T):
+    def handle(self, item: In):
         raise NotImplementedError
 
 
-class SinkHandler(Handler[T]):
+class SinkHandler(Handler[In, None]):
     def __init__(self):
-        self._items: list[T] = []
+        self._items: list[In] = []
         super().__init__()
 
-    def handle(self, item: T):
+    def handle(self, item: In):
         self._items.append(item)
 
     @property
-    def items(self):
+    def items(self) -> list[In]:
         return self._items
 
 
 class HandlerCollection(Generic[T]):
-    def __init__(self, *handlers: Handler[T]):
+    def __init__(self, *handlers: IHandler[Any]):
         self.handlers = list(handlers)
         self._sink: SinkHandler = SinkHandler()
         if self.handlers:
             handlers[-1].next_handler = self._sink
         self.handlers.append(self._sink)
 
-    def handle(self, item: T) -> list[T]:
+    def handle(self, item: Any) -> list[Any]:
         self.handlers[0].handle(item)
 
         return self._sink.items
@@ -65,7 +67,7 @@ class HandlerCollection(Generic[T]):
         return self._sink
 
 
-class GlobFilesHandler(Handler[Path]):
+class GlobFilesHandler(Handler[Path, Path]):
     def __init__(self, pattern: str):
         self.pattern = pattern
         super().__init__()
@@ -78,7 +80,7 @@ class GlobFilesHandler(Handler[Path]):
             self.next_handler.handle(sub)
 
 
-class ExcludeFileHandler(Handler[Path]):
+class ExcludeFileHandler(Handler[Path, Path]):
     def __init__(self, *exclude_patterns: str):
         self.exclude_patterns = exclude_patterns
         super().__init__()

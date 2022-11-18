@@ -44,7 +44,7 @@ def test_sink_handler(mocker):
 
 
 def test_handler_collection(mocker):
-    class FakeHandler(Handler[int]):
+    class FakeHandler(Handler[int, int]):
         def handle(self, item: int):
             self.next_handler.handle(item)
 
