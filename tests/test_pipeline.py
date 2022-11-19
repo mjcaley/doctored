@@ -1,12 +1,12 @@
 from pathlib import Path
 
-from doctored.handlers import Handler, HandlerCollection
+from doctored.handlers import Handler, HandlerChain
 from doctored.pipeline import Pipeline, PipelineBuilder
 
 
 def test_pipeline_run_files():
     root = Path(__file__).absolute().parent / "example"
-    p = Pipeline(HandlerCollection(), HandlerCollection())
+    p = Pipeline(HandlerChain(), HandlerChain())
     result = p.run_files(root)
 
     assert [root] == result

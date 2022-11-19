@@ -4,14 +4,14 @@ from ast import AST
 from itertools import pairwise
 from pathlib import Path
 
-from .handlers import Handler, HandlerCollection
+from .handlers import Handler, HandlerChain
 
 
 class Pipeline:
     def __init__(
         self,
-        file_handlers: HandlerCollection[Path],
-        ast_handlers: HandlerCollection[AST],
+        file_handlers: HandlerChain[Path],
+        ast_handlers: HandlerChain[AST],
     ):
         self.file_handlers = file_handlers
         self.ast_handlers = ast_handlers
@@ -34,11 +34,11 @@ class PipelineBuilder:
         return self
 
     @staticmethod
-    def _link_handlers(handlers: list[Handler]) -> HandlerCollection:
+    def _link_handlers(handlers: list[Handler]) -> HandlerChain:
         for handler, next_handler in pairwise(handlers):
             handler.next_handler = next_handler
 
-        return HandlerCollection(*handlers)
+        return HandlerChain(*handlers)
 
     def build(self) -> Pipeline:
         file_handlers = self._link_handlers(self._file_handlers)

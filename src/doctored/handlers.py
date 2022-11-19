@@ -1,15 +1,28 @@
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
+from abc import ABC, abstractmethod, abstractproperty
 from pathlib import Path
 from typing import Any, Generic, TypeVar
 
 T = TypeVar("T")
-In = TypeVar("In")
-Out = TypeVar("Out")
 
 
-class IHandler(ABC, Generic[T]):
+class INextHandler(ABC, Generic[T]):
+    @property
+    @abstractproperty
+    def next_handler(self) -> IHandle[T] | None:
+        """Next handler in the chain.
+
+        :return: Instance of `IHandler`.
+        """
+
+    @next_handler.setter
+    @abstractproperty
+    def next_handler(self, handler: IHandle[T]):
+        """Set the handler."""
+
+
+class IHandle(ABC, Generic[T]):
     @abstractmethod
     def handle(self, item: T):
         """Logic to perform an action on the item.
@@ -20,54 +33,55 @@ class IHandler(ABC, Generic[T]):
         """
 
 
-class Handler(IHandler[In], Generic[In, Out]):
+class Handler(IHandle[T], INextHandler[T], Generic[T]):
     def __init__(self):
         self._handler = None
 
     @property
-    def next_handler(self) -> Handler[Out] | None:
+    def next_handler(self) -> IHandle[T] | None:
         return self._handler
 
     @next_handler.setter
-    def next_handler(self, handler: IHandler[Out]):
+    def next_handler(self, handler: IHandle[T]):
         self._handler = handler
 
-    def handle(self, item: In):
+    def handle(self, item: T):
         raise NotImplementedError
 
 
-class SinkHandler(Handler[In, None]):
+class SinkHandler(Handler[T]):
     def __init__(self):
-        self._items: list[In] = []
+        self._items = []
         super().__init__()
 
-    def handle(self, item: In):
+    def handle(self, item: T):
         self._items.append(item)
 
     @property
-    def items(self) -> list[In]:
+    def items(self) -> list[T]:
         return self._items
 
 
-class HandlerCollection(Generic[T]):
-    def __init__(self, *handlers: IHandler[Any]):
+class HandlerChain(Generic[T]):
+    def __init__(self, *handlers: Handler[T]):
         self.handlers = list(handlers)
-        self._sink: SinkHandler = SinkHandler()
-        if self.handlers:
-            handlers[-1].next_handler = self._sink
-        self.handlers.append(self._sink)
 
-    def handle(self, item: Any) -> list[Any]:
-        self.handlers[0].handle(item)
+    def handle(self, item: T) -> list[T]:
+        if not self.handlers:
+            return [item]
 
-        return self._sink.items
+        sink = SinkHandler()
 
-    @property
-    def sink(self) -> SinkHandler[T]:
-        return self._sink
+        head = self.handlers[0]
+        tail = self.handlers[-1]
+        tail.next_handler = sink
+        head.handle(item)
+        tail.next_handler = None
+
+        return sink.items
 
 
-class GlobFilesHandler(Handler[Path, Path]):
+class GlobFilesHandler(Handler[Path]):
     def __init__(self, pattern: str):
         self.pattern = pattern
         super().__init__()
@@ -80,7 +94,7 @@ class GlobFilesHandler(Handler[Path, Path]):
             self.next_handler.handle(sub)
 
 
-class ExcludeFileHandler(Handler[Path, Path]):
+class ExcludeFileHandler(Handler[Path]):
     def __init__(self, *exclude_patterns: str):
         self.exclude_patterns = exclude_patterns
         super().__init__()

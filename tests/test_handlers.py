@@ -6,7 +6,7 @@ from doctored.handlers import (
     ExcludeFileHandler,
     GlobFilesHandler,
     Handler,
-    HandlerCollection,
+    HandlerChain,
     SinkHandler,
 )
 
@@ -43,8 +43,8 @@ def test_sink_handler(mocker):
     assert [42] == s.items
 
 
-def test_handler_collection(mocker):
-    class FakeHandler(Handler[int, int]):
+def test_handler_chain(mocker):
+    class FakeHandler(Handler[int]):
         def handle(self, item: int):
             self.next_handler.handle(item)
 
@@ -53,19 +53,19 @@ def test_handler_collection(mocker):
     h1.next_handler = h2
     h1_spy = mocker.spy(h1, "handle")
     h2_spy = mocker.spy(h2, "handle")
-    c = HandlerCollection(h1, h2)
-    c.handle(42)
+    c = HandlerChain(h1, h2)
+    result = c.handle(42)
 
     h1_spy.assert_called_once_with(42)
     h2_spy.assert_called_once_with(42)
+    assert [42] == result
 
 
-def test_empty_handler_collection():
-    c = HandlerCollection()
-    c.handle(42)
+def test_empty_handler_chain():
+    c = HandlerChain()
+    result = c.handle(42)
 
-    assert 1 == len(c.sink.items)
-    assert 42 == c.sink.items[0]
+    assert [42] == result
 
 
 def test_glob_file_handler_no_next_handler(py_dir):
