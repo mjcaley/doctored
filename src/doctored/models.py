@@ -1,18 +1,11 @@
+from ast import AST
 from dataclasses import dataclass
-from enum import Enum, auto
 from pathlib import Path
-from queue import SimpleQueue
-
-
-class Kind(Enum):
-    Module = auto()
-    Function = auto()
-    AsyncFunction = auto()
-    Class = auto()
 
 
 @dataclass
-class DocStringNode:
+class ASTNodeRecord:
     path: Path
-    kind: Kind
-    docstring: str
+    structure: list[str]
+    node: AST
+    docstring: str | None
