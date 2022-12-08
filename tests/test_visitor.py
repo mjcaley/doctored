@@ -1,9 +1,16 @@
 import ast
+from dataclasses import dataclass
+from pathlib import Path
 
 import pytest
 
-from doctored.models import ASTNodeRecord
 from doctored.visitor import Visitor
+
+
+@dataclass
+class PathAndDocstring:
+    path: Path
+    docstring: str | None
 
 
 @pytest.fixture
@@ -15,134 +22,178 @@ def module_source(tmp_path):
 
 
 @pytest.fixture
-def module_docstring():
-    yield "This is a module docstring."
+def docstring():
+    yield "This is a docstring."
 
 
 @pytest.fixture
-def module_with_docstring(module_source, module_docstring):
-    with open(module_source, "w") as module:
-        module.write('"""' + module_docstring + '"""')
+def module_with_docstring(module_source, docstring):
+    module_source.write_text('"""' + docstring + '"""')
 
-    yield {"path": module_source, "docstring": module_docstring}
-
-
-def test_visit_ast(module_with_docstring):
-    result = Visitor.visit_ast(module_with_docstring["path"])
-
-    assert 1 == len(result)
-    assert module_with_docstring["docstring"] == result[0].docstring
-    assert module_with_docstring["path"] == result[0].path
+    yield PathAndDocstring(module_source, docstring)
 
 
-def test_visits_module(mocker):
-    module = ast.Module(body=[])
-    mock_path = mocker.Mock()
-    v = Visitor(mock_path)
+@pytest.fixture
+def class_with_docstring(module_source, docstring):
+    module_source.write_text(
+        f"""
+class Name:
+    '''{docstring}'''
+    pass
+"""
+    )
 
-    v.visit(module)
-    result = v.nodes
-
-    assert mock_path == result[0].path
-    assert [str(mock_path)] == result[0].structure
-    assert module is result[0].node
-    assert None is result[0].docstring
-
-
-def test_visits_module_with_docstring(mocker):
-    docstring = "This is a docstring"
-    module = ast.Module(body=[ast.Expr(ast.Constant(docstring))])
-    mock_path = mocker.Mock()
-    v = Visitor(mock_path)
-
-    v.visit(module)
-    result = v.nodes
-
-    assert mock_path == result[0].path
-    assert [str(mock_path)] == result[0].structure
-    assert module is result[0].node
-    assert docstring is result[0].docstring
+    yield PathAndDocstring(module_source, docstring)
 
 
-def test_visit_empty_class_def(mocker):
-    class_def = ast.ClassDef("Name", body=[ast.Pass()])
-    mock_path = mocker.Mock()
-    v = Visitor(mock_path)
+@pytest.fixture
+def class_without_docstring(module_source):
+    module_source.write_text(
+        f"""
+class Name:
+    pass
+"""
+    )
 
-    v.visit(class_def)
-    result = v.nodes
-
-    assert mock_path == result[0].path
-    assert ["Name"] == result[0].structure
-    assert class_def is result[0].node
-    assert None is result[0].docstring
+    yield PathAndDocstring(module_source, None)
 
 
-def test_visit_class_def_with_docstring(mocker):
-    class_def = ast.ClassDef("Name", body=[ast.Pass()])
-    mock_path = mocker.Mock()
-    v = Visitor(mock_path)
+@pytest.fixture
+def function_with_docstring(module_source, docstring):
+    module_source.write_text(
+        f"""
+def name():
+    '''{docstring}'''
+    pass
+"""
+    )
 
-    v.visit(class_def)
-    result = v.nodes
-
-    assert mock_path == result[0].path
-    assert ["Name"] == result[0].structure
-    assert class_def is result[0].node
-    assert None is result[0].docstring
-
-
-def test_visit_empty_function_def(mocker):
-    function_def = ast.FunctionDef("name", body=[ast.Pass()])
-    mock_path = mocker.Mock()
-    v = Visitor(mock_path)
-
-    v.visit(function_def)
-    result = v.nodes
-
-    assert mock_path == result[0].path
-    assert ["name"] == result[0].structure
-    assert function_def is result[0].node
-    assert None is result[0].docstring
+    yield PathAndDocstring(module_source, docstring)
 
 
-def test_visit_function_def_with_docstring(mocker):
-    function_def = ast.FunctionDef("name", body=[ast.Pass()])
-    mock_path = mocker.Mock()
-    v = Visitor(mock_path)
+@pytest.fixture
+def function_without_docstring(module_source):
+    module_source.write_text(
+        f"""
+def name():
+    pass
+"""
+    )
 
-    v.visit(function_def)
-    result = v.nodes
-
-    assert mock_path == result[0].path
-    assert ["name"] == result[0].structure
-    assert function_def is result[0].node
-    assert None is result[0].docstring
+    yield PathAndDocstring(module_source, None)
 
 
-def test_visit_empty_async_function_def(mocker):
-    async_function_def = ast.AsyncFunctionDef("name", body=[ast.Pass()])
-    mock_path = mocker.Mock()
-    v = Visitor(mock_path)
+@pytest.fixture
+def async_function_with_docstring(module_source, docstring):
+    module_source.write_text(
+        f"""
+async def name():
+    '''{docstring}'''
+    pass
+"""
+    )
 
-    v.visit(async_function_def)
-    result = v.nodes
-
-    assert mock_path == result[0].path
-    assert ["name"] == result[0].structure
-    assert async_function_def is result[0].node
-    assert None is result[0].docstring
+    yield PathAndDocstring(module_source, docstring)
 
 
-def test_visit_async_function_def_with_docstring(mocker):
-    async_function_def = ast.AsyncFunctionDef("name", body=[ast.Pass()])
-    mock_path = mocker.Mock()
-    v = Visitor(mock_path)
+@pytest.fixture
+def async_function_without_docstring(module_source):
+    module_source.write_text(
+        f"""
+async def name():
+    pass
+"""
+    )
 
-    v.visit(async_function_def)
-    result = v.nodes
+    yield PathAndDocstring(module_source, None)
 
-    assert mock_path == result[0].path
-    assert ["name"] == result[0].structure
-    assert async_function_def is result[0].node
-    assert None is result[0].docstring
+
+@pytest.fixture
+def nested_source(module_source, docstring):
+    src = f"""
+'''{docstring}'''
+
+
+class Class:
+    '''{docstring}'''
+
+    class SubClass:
+        '''{docstring}'''
+        pass
+
+    def func1(self):
+        '''{docstring}'''
+
+        def inner_func1():
+            pass
+
+    async def func2(self):
+        '''{docstring}'''
+
+        def inner_func2():
+            pass
+"""
+    module_source.write_text(src)
+
+    yield PathAndDocstring(module_source, docstring)
+
+
+def test_visit_module(module_with_docstring):
+    result = Visitor.visit_ast(module_with_docstring.path)
+
+    assert ast.Module == type(result.node)
+    assert module_with_docstring.path == result.path
+    assert module_with_docstring.docstring == result.docstring
+
+
+def test_visit_class_def_with_docstring(class_with_docstring):
+    result = Visitor.visit_ast(class_with_docstring.path)
+    result_class = result.children[0]
+
+    assert "Name" == result_class.name
+    assert class_with_docstring.docstring == result_class.docstring
+
+
+def test_visit_class_def_without_docstring(class_without_docstring):
+    result = Visitor.visit_ast(class_without_docstring.path)
+    result_class = result.children[0]
+
+    assert "Name" == result_class.name
+    assert class_without_docstring.docstring == result_class.docstring
+
+
+def test_visit_function_def_with_docstring(function_with_docstring):
+    result = Visitor.visit_ast(function_with_docstring.path)
+    result_func = result.children[0]
+
+    assert "name" == result_func.name
+    assert function_with_docstring.docstring == result_func.docstring
+
+
+def test_visit_function_def_without_docstring(function_without_docstring):
+    result = Visitor.visit_ast(function_without_docstring.path)
+    result_func = result.children[0]
+
+    assert "name" == result_func.name
+    assert function_without_docstring.docstring == result_func.docstring
+
+
+def test_visit_async_function_def_with_docstring(async_function_with_docstring):
+    result = Visitor.visit_ast(async_function_with_docstring.path)
+    result_func = result.children[0]
+
+    assert "name" == result_func.name
+    assert async_function_with_docstring.docstring == result_func.docstring
+
+
+def test_visit_async_function_def_without_docstring(async_function_without_docstring):
+    result = Visitor.visit_ast(async_function_without_docstring.path)
+    result_func = result.children[0]
+
+    assert "name" == result_func.name
+    assert async_function_without_docstring.docstring == result_func.docstring
+
+
+def test_visit_complicated(nested_source):
+    result = Visitor.visit_ast(nested_source.path)
+    result_class = result.children[0]

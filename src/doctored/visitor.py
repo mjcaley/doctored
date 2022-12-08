@@ -1,59 +1,91 @@
+from __future__ import annotations
+
 import ast
 from ast import NodeVisitor
-from copy import copy
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from .models import ASTNodeRecord
+
+class RecordProperties:
+    @property
+    def name(self) -> str:
+        return self.node.name
+
+    @property
+    def docstring(self) -> str:
+        return ast.get_docstring(self.node)
 
 
-def _auto_stack(func):
-    def inner(self, node: Any) -> Any:
-        self.stack.append(node.name)
-        ret = func(self, node)
-        self.stack.pop()
-        return ret
+@dataclass
+class ModuleRecord(RecordProperties):
+    node: ast.Module
+    path: Path
+    children: list[ASTRecord] = field(default_factory=list)
 
-    return inner
+
+@dataclass
+class ClassRecord(RecordProperties):
+    node: ast.ClassDef
+    children: list[ASTRecord] = field(default_factory=list)
+
+
+@dataclass
+class FunctionRecord(RecordProperties):
+    node: ast.AST
+    children: list[ASTRecord] = field(default_factory=list)
+
+
+@dataclass
+class AsyncFunctionRecord(RecordProperties):
+    node: ast.AST
+    children: list[ASTRecord] = field(default_factory=list)
+
+
+ASTRecord = ModuleRecord | ClassRecord | FunctionRecord | AsyncFunctionRecord
 
 
 class Visitor(NodeVisitor):
     def __init__(self, path: Path):
         self.path = path
-        self.stack: list[str] = []
-        self.nodes: list[ASTNodeRecord] = []
+        self.stack = []
+
+    @property
+    def top(self) -> ASTRecord:
+        return self.stack[-1]
 
     @classmethod
-    def visit_ast(cls, path: Path) -> list[ASTNodeRecord]:
+    def visit_ast(cls, path: Path) -> ModuleRecord:
         with open(path) as file:
             source = file.read()
         tree = ast.parse(source)
         visitor = cls(path)
         visitor.visit(tree)
 
-        return visitor.nodes
+        return visitor.stack[0]
 
     def visit_Module(self, node: ast.Module) -> Any:
-        self.stack.append(str(self.path))
-        self.nodes.append(
-            ASTNodeRecord(self.path, copy(self.stack), node, ast.get_docstring(node))
-        )
+        record = ModuleRecord(node, self.path)
+        self.stack.append(record)
+        self.generic_visit(node)
+
+    def visit_ClassDef(self, node: ast.ClassDef) -> Any:
+        record = ClassRecord(node)
+        self.top.children.append(record)
+        self.stack.append(record)
+        self.generic_visit(node)
         self.stack.pop()
 
-    @_auto_stack
-    def visit_ClassDef(self, node: ast.ClassDef) -> Any:
-        self.nodes.append(
-            ASTNodeRecord(self.path, copy(self.stack), node, ast.get_docstring(node))
-        )
-
-    @_auto_stack
     def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
-        self.nodes.append(
-            ASTNodeRecord(self.path, copy(self.stack), node, ast.get_docstring(node))
-        )
+        record = FunctionRecord(node)
+        self.top.children.append(record)
+        self.stack.append(record)
+        self.generic_visit(node)
+        self.stack.pop()
 
-    @_auto_stack
     def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> Any:
-        self.nodes.append(
-            ASTNodeRecord(self.path, copy(self.stack), node, ast.get_docstring(node))
-        )
+        record = AsyncFunctionRecord(node)
+        self.top.children.append(record)
+        self.stack.append(record)
+        self.generic_visit(node)
+        self.stack.pop()

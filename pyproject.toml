@@ -15,8 +15,6 @@ python = "^3.10"
 docutils = "^0.19"
 typer = "^0.6.1"
 dynaconf = "^3.1.11"
-griffe = "^0.23.0"
-astroid = "^2.12.12"
 loguru = "^0.6.0"
 
 [tool.poetry.group.quality.dependencies]
@@ -31,6 +29,7 @@ target-version = ["py310"]
 [tool.isort]
 profile = "black"
 src_paths = ["src/doctored", "tests"]
+
 
 
 

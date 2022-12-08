@@ -6,17 +6,15 @@ from itertools import pairwise
 from pathlib import Path
 from typing import Iterable
 
-from doctored.models import ASTNodeRecord
-
 from .handlers import Handler, HandlerChain
-from .visitor import Visitor
+from .visitor import ASTRecord, Visitor
 
 
 class Pipeline:
     def __init__(
         self,
         file_handlers: HandlerChain[Path],
-        ast_handlers: HandlerChain[ASTNodeRecord],
+        ast_handlers: HandlerChain[ASTRecord],
     ):
         self.file_handlers = file_handlers
         self.ast_handlers = ast_handlers
@@ -24,13 +22,13 @@ class Pipeline:
     def run_files(self, root: Path) -> list[Path]:
         return self.file_handlers.handle(root)
 
-    def run_ast(self, files: Iterable[Path]) -> list[ASTNodeRecord]:
-        records = {path: Visitor.visit_ast(path) for path in files}
+    def run_ast(self, files: Iterable[Path]) -> list[ASTRecord]:
+        records = [Visitor.visit_ast(file) for file in files]
 
         result = []
         for record in records:
             record_result = self.ast_handlers.handle(record)
-            result += record_result
+            result.append(record_result)
 
         return result
 
