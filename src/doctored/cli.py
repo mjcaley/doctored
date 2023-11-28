@@ -1,11 +1,14 @@
+from pathlib import Path
 import typer
 
-from .parser import rest_parser
+from .pipeline import pipeline
+# from .parser import rest_parser
 
 
-def command(file: str):
-    document = rest_parser(file)
-    typer.echo(document)
+def command(path: Path):
+    # document = rest_parser(path)
+    # typer.echo(document)
+    pipeline(path)
 
 
 def main():

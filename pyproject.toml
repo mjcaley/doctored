@@ -13,17 +13,18 @@ doctored = "doctored.cli:main"
 [tool.poetry.dependencies]
 python = "^3.10"
 docutils = "^0.19"
-typer = "^0.6.1"
-dynaconf = "^3.1.11"
+typer = "^0.9"
+dynaconf = "^3.2"
 griffe = "^0.23.0"
 astroid = "^2.12.12"
-loguru = "^0.6.0"
+loguru = "^0.7"
+libcst = "^1.1.0"
 
 [tool.poetry.group.quality.dependencies]
-isort = "^5.10.1"
-pre-commit = "^2.20.0"
-black = "^22.10.0"
-mypy = "^0.991"
+isort = "^5.11"
+pre-commit = "^3.5"
+black = "^23.11"
+mypy = "^1.7"
 
 [tool.black]
 target-version = ["py310"]
@@ -31,6 +32,8 @@ target-version = ["py310"]
 [tool.isort]
 profile = "black"
 src_paths = ["src/doctored", "tests"]
+
+
 
 
 
