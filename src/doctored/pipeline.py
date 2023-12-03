@@ -1,92 +1,83 @@
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Iterator, cast
+
 import libcst as cst
 import libcst.matchers as m
 
 from doctored.filters import match
 
 
-@dataclass
-class FilterFileResult:
-    path: Path
-    module: cst.Module
-
-
-def filter_files(base: Path, *file_filters: Callable[[Path], bool]) -> Iterator[FilterFileResult]:
+def parse_files(
+    base: Path, *file_filters: Callable[[Path], bool]
+) -> Iterator[cst.Module]:
     for file in base.glob("**/*"):
         if all((file_filter(file) for file_filter in file_filters)):
-            module = cst.parse_module(file.read_text())
-            yield FilterFileResult(file, module)
+            yield cst.parse_module(file.read_text())
 
 
 @dataclass
-class NodeFilterResult:
-    path: Path
-    name: str
+class NodeResult:
+    stack: list[str]
     node: cst.ClassDef | cst.FunctionDef
 
 
-def filter_nodes_impl(
-    path: Path, stack: list[str], node: cst.CSTNode
-) -> Iterator[NodeFilterResult]:
+def _filter_nodes(stack: list[str], node: cst.CSTNode) -> Iterator[NodeResult]:
     if m.matches(node, m.ClassDef | m.FunctionDef):
         node_def = cast(cst.ClassDef | cst.FunctionDef, node)
         stack.append(node_def.name.value)
-        yield NodeFilterResult(path, ".".join(stack), node_def)
+        yield NodeResult(stack.copy(), node_def)
 
         for child in node.children:
-            for c in filter_nodes_impl(path, stack, child):
+            for c in _filter_nodes(stack, child):
                 yield c
 
         stack.pop()
     else:
         for child in node.children:
-            for c in filter_nodes_impl(path, stack, child):
+            for c in _filter_nodes(stack, child):
                 yield c
 
 
-def filter_nodes(file_result: FilterFileResult) -> Iterator[NodeFilterResult]:
-    for node in filter_nodes_impl(
-        file_result.path, [file_result.path.stem], file_result.module
-    ):
+def filter_nodes(module: cst.Module) -> Iterator[NodeResult]:
+    for node in _filter_nodes([], module):
         yield node
 
 
 @dataclass
-class NodeDetailsResult:
-    path: Path
-    name: str
+class NodeDetails:
     annotations: list[m.Param] | Any
     docstring: str | None
 
 
-def filter_node_details(node_result: NodeFilterResult) -> NodeDetailsResult:
-    if m.matches(node_result.node, m.FunctionDef()):
-        func = cast(cst.FunctionDef, node_result.node)
-        return NodeDetailsResult(
-            node_result.path,
-            node_result.name,
-            func.params.params,
-            func.get_docstring()
-        )
+def node_details(node: cst.FunctionDef | cst.ClassDef):
+    if m.matches(node, m.FunctionDef()):
+        func = cast(cst.FunctionDef, node)
+        return NodeDetails(func.params, func.get_docstring())
     else:
-        cls = cast(cst.ClassDef, node_result.node)
-        return NodeDetailsResult(
-            node_result.path,
-            node_result.name,
-            None,
-            cls.get_docstring()
-        )
+        cls = cast(cst.ClassDef, node)
+        return NodeDetails(None, cls.get_docstring())
+
+
+@dataclass
+class NodeParamsResult:
+    path: Path
+    name: str
+    annotations: dict[str, str]
+    docstring: str | None
+
+
+# def transform_params(node_details_result: NodeDetailsResult) -> NodeParamsResult:
+#     ...
 
 
 def pipeline(root: Path):
     """Entry point for the whole thing."""
 
-    for file_result in filter_files(root, match()):
+    for file_result in parse_files(root, match()):
         for node_result in filter_nodes(file_result):
-            node_details = filter_node_details(node_result)
-            print(node_details)
+            details = node_details(node_result.node)
+            print(details)
 
 
 class Pipeline:
